@@ -24,7 +24,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class TeamStatsFragment extends Fragment {
+public class VenueStatsFragment extends Fragment {
     private Match mMatch;
     public static String KEY_MATCH = "KEY_MATCH";
     private ArrayList<String> mCategories;
@@ -37,7 +37,7 @@ public class TeamStatsFragment extends Fragment {
         Gson gson = new Gson();
         Type type = new TypeToken<Match>(){}.getType();
         mMatch = gson.fromJson(getArguments().getString(KEY_MATCH), type);
-        mCategories = new ArrayList<>(Arrays.asList(StatsCategory.TEAM_STATS_CATEGORIES));
+        mCategories = new ArrayList<>(Arrays.asList(StatsCategory.VENUE_STATS_CATEGORIES));
     }
 
     @Nullable
@@ -57,7 +57,7 @@ public class TeamStatsFragment extends Fragment {
                 String[] teams = new String[] {StringUtil.toCamelCase(mMatch.getTeams().get(0).getName()),
                         StringUtil.toCamelCase(mMatch.getTeams().get(1).getName())};
                 Bundle bundle = new Bundle();
-                bundle.putString(Constants.KEY_STATS_TYPE, StatsCategory.TEAM_STATS);
+                bundle.putString(Constants.KEY_STATS_TYPE, StatsCategory.VENUE_STATS);
                 bundle.putString(Constants.KEY_STATS_SUBTYPE, mCategories.get(pos));
                 bundle.putStringArray(Constants.KEY_PLAYING_TEAMS, teams);
                 bundle.putString(Constants.KEY_MATCH_FORMAT, mMatch.getFormat());
@@ -67,6 +67,9 @@ public class TeamStatsFragment extends Fragment {
                         Intent intent = new Intent(getActivity(), RecentMatchesActivity.class);
                         intent.putExtras(bundle);
                         startActivity(intent);
+                        break;
+                    }
+                    case StatsCategory.PER_INN_AVG_SCORE: {
                         break;
                     }
                     case StatsCategory.BATTING_MOST_RUNS:

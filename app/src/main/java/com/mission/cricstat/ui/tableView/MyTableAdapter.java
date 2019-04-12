@@ -27,24 +27,24 @@ public class MyTableAdapter extends AbstractTableAdapter<ColumnHeaderModel, RowH
         super(p_jContext);
 
         switch (statsCategory) {
-            case StatsCategory.TEAM_STATS_BATTING_MOST_RUNS:
-            case StatsCategory.TEAM_STATS_BATTING_BEST_AVG:
-            case StatsCategory.TEAM_STATS_BATTING_BEST_SR:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_4S:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_6S:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_50S:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_100S:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_DUCKS: {
+            case StatsCategory.BATTING_MOST_RUNS:
+            case StatsCategory.BATTING_BEST_AVG:
+            case StatsCategory.BATTING_BEST_SR:
+            case StatsCategory.BATTING_MOST_4S:
+            case StatsCategory.BATTING_MOST_6S:
+            case StatsCategory.BATTING_MOST_50S:
+            case StatsCategory.BATTING_MOST_100S:
+            case StatsCategory.BATTING_MOST_DUCKS: {
                 this.myTableViewModel = new TeamBattingStatsTableViewModel();
                 break;
             }
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_WICKETS:
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_MAIDENS:
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_4_PLUS:
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_5_PLUS:
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_AVERAGE:
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_SR:
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_ECONOMY: {
+            case StatsCategory.BOWLING_MOST_WICKETS:
+            case StatsCategory.BOWLING_MOST_MAIDENS:
+            case StatsCategory.BOWLING_MOST_4_PLUS:
+            case StatsCategory.BOWLING_MOST_5_PLUS:
+            case StatsCategory.BOWLING_BEST_AVERAGE:
+            case StatsCategory.BOWLING_BEST_SR:
+            case StatsCategory.BOWLING_BEST_ECONOMY: {
                 this.myTableViewModel = new TeamBowlingStatsTableViewModel();
                 break;
             }

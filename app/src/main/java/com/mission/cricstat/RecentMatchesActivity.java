@@ -20,8 +20,9 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import com.mission.cricstat.Adapter.TeamStatsRecentMatchesRecyclerViewAdapter;
+import com.mission.cricstat.Adapter.RecentMatchesRecyclerViewAdapter;
 import com.mission.cricstat.Common.Constants;
+import com.mission.cricstat.Common.StatsCategory;
 import com.mission.cricstat.Common.StringUtil;
 import com.mission.cricstat.Rest.Model.TeamStats.MatchScore;
 import com.mission.cricstat.Rest.Rest;
@@ -35,30 +36,27 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class TeamStatsRecentMatchesActivity extends AppCompatActivity {
+public class RecentMatchesActivity extends AppCompatActivity {
 
-    public static final String KEY_STATS_TYPE = "STATS_TYPE";
-    public static final String KEY_PLAYING_TEAMS = "KEY_PLAYING_TEAMS";
-    public static final String KEY_MATCH_FORMAT = "KEY_MATCH_FORMAT";
-    public static final String KEY_MATCH_VENUE = "KEY_MATCH_VENUE";
     private static final String SPINNER_ITEM_ALL = "ALL";
-    private static final String TAG = TeamStatsRecentMatchesActivity.class.getSimpleName();
+    private static final String TAG = RecentMatchesActivity.class.getSimpleName();
 
     /* Data */
-    private TeamStatsRecentMatchesRecyclerViewAdapter mRecyclerViewAdapter;
+    private RecentMatchesRecyclerViewAdapter mRecyclerViewAdapter;
     private ArrayList<MatchScore> mMatchScores = new ArrayList<>();
 
     /* local data containers */
     private Map<String, String> mQueryMap = null;
-    private String mTitle;
-    private String mMatchFormat;
-    private String[] mTeamSpinnerItems;
-    private String[] mFormatSpinnerItems = {Constants.FORMAT_ALL, Constants.FORMAT_T20, Constants.FORMAT_OD, Constants.FORMAT_TEST};
-    private String[] mVenueSpinnerItems;
-    private String[] mOpponentSpinnerItems;
+    private String mStatsType, mStatsSubType;
+    private String[] mTeamSpinnerItems = null;
+    private String[] mFormatSpinnerItems = {Constants.FORMAT_ALL, Constants.FORMAT_T20,
+            Constants.FORMAT_OD, Constants.FORMAT_TEST};
+    private String[] mVenueSpinnerItems = null;
+    private String[] mOpponentSpinnerItems = null;
     private String[] mNumMatchesSpinnerItems = {Constants.MATCHES_5, Constants.MATCHES_10, Constants.MATCHES_15};
 
-    private String mSelectedTeam, mSelectedFormat, mSelectedVenue = null, mSelectedOpponent = null, mSelectedNumMatches;
+    private String mSelectedTeam = null, mSelectedFormat = null, mSelectedVenue = null,
+            mSelectedOpponent = null, mSelectedNumMatches = null;
 
     /*View Items */
     private RecyclerView mRecyclerView;
@@ -68,72 +66,111 @@ public class TeamStatsRecentMatchesActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_team_stats_recent_matches);
+        setContentView(R.layout.activity_recent_matches);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         mSummaryTextView = findViewById(R.id.tv_summary);
         /* Extract Intent Data */
-        mTitle = getIntent().getExtras().getString(KEY_STATS_TYPE);
-        mTeamSpinnerItems = getIntent().getExtras().getStringArray(KEY_PLAYING_TEAMS);
-        mMatchFormat = getIntent().getExtras().getString(KEY_MATCH_FORMAT);
-        mVenueSpinnerItems = new String[]{SPINNER_ITEM_ALL, getIntent().getExtras().getString(KEY_MATCH_VENUE)};
-        mOpponentSpinnerItems = new String[]{SPINNER_ITEM_ALL, mTeamSpinnerItems[1], mTeamSpinnerItems[0]};
+        mStatsType = getIntent().getExtras().getString(Constants.KEY_STATS_TYPE);
+        mStatsSubType = getIntent().getExtras().getString(Constants.KEY_STATS_SUBTYPE);
+        if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+            mTeamSpinnerItems = getIntent().getExtras().getStringArray(Constants.KEY_PLAYING_TEAMS);
+            mVenueSpinnerItems = new String[]{SPINNER_ITEM_ALL, getIntent().getExtras().getString(Constants.KEY_MATCH_VENUE)};
+            mOpponentSpinnerItems = new String[]{SPINNER_ITEM_ALL, mTeamSpinnerItems[1], mTeamSpinnerItems[0]};
 
-        getSupportActionBar().setTitle(mTitle);
+            mSelectedTeam = mTeamSpinnerItems[0];
+        } else {
+            mSelectedVenue = getIntent().getExtras().getString(Constants.KEY_MATCH_VENUE);
+        }
+        mSelectedFormat = getIntent().getExtras().getString(Constants.KEY_MATCH_FORMAT);
+        mSelectedNumMatches = mNumMatchesSpinnerItems[0];
+
+        getSupportActionBar().setTitle(mStatsSubType);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
 
         /* Setup RecyclerView */
         mRecyclerView = findViewById(R.id.rv_team_stats_recent_matches);
         mRecyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.HORIZONTAL));
-        mRecyclerViewAdapter = new TeamStatsRecentMatchesRecyclerViewAdapter(mMatchScores);
+        mRecyclerViewAdapter = new RecentMatchesRecyclerViewAdapter(mMatchScores);
         mRecyclerView.setAdapter(mRecyclerViewAdapter);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        mSelectedTeam = mTeamSpinnerItems[0];
-        mSelectedFormat = mMatchFormat;
-        mSelectedNumMatches = mNumMatchesSpinnerItems[0];
-
-        fetchRecentMatchesStats(mSelectedTeam, mSelectedFormat, mSelectedVenue, mSelectedOpponent, mSelectedNumMatches);
+        fetchRecentMatchesStats(false);
     }
 
-    private void fetchRecentMatchesStats(String teamName, String format, String venue,
-                                         String oppTeam, String numMatches) {
+    private void fetchRecentMatchesStats(boolean isRetry) {
         Map<String, String> queryParams = new HashMap<>();
-        if (teamName != null) queryParams.put("name", teamName.toLowerCase());
-        if (format != null) queryParams.put("format", format.toLowerCase());
-        if (venue != null) queryParams.put("venue", venue.toLowerCase());
-        if (oppTeam != null) queryParams.put("against_team", oppTeam.toLowerCase());
-        if (numMatches != null) queryParams.put("num_matches", numMatches);
+        if (mSelectedTeam != null) queryParams.put("name", mSelectedTeam.toLowerCase());
+        if (mSelectedFormat != null) queryParams.put("format", mSelectedFormat.toLowerCase());
+        if (mSelectedVenue != null) {
+            if (mStatsType.equals(StatsCategory.VENUE_STATS)) {
+                queryParams.put("name", mSelectedVenue.toLowerCase());
+            } else {
+                queryParams.put("venue", mSelectedVenue.toLowerCase());
+            }
+        }
+        if (mSelectedOpponent != null) queryParams.put("against_team", mSelectedOpponent.toLowerCase());
+        if (mSelectedNumMatches != null) queryParams.put("num_matches", mSelectedNumMatches);
 
-        Log.e(TAG, queryParams.toString());
-        if (mQueryMap != null && mQueryMap.equals(queryParams)) return;
+        if (!isRetry) {
+            if (mQueryMap != null && mQueryMap.equals(queryParams)) return;
+        }
         mQueryMap = queryParams;
+        Log.e(TAG, queryParams.toString());
 
-        Rest.api().getRecentMatches(queryParams).enqueue(new Callback<ArrayList<MatchScore>>() {
-            @Override
-            public void onResponse(Call<ArrayList<MatchScore>> call, Response<ArrayList<MatchScore>> response) {
-                mMatchScores.clear();
-                mMatchScores.addAll(response.body());
-                mRecyclerViewAdapter.notifyDataSetChanged();
-                mSummaryTextView.setText(getSummaryText());
-            }
+        if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+            Rest.api().getTeamRecentMatches(queryParams).enqueue(new Callback<ArrayList<MatchScore>>() {
+                @Override
+                public void onResponse(Call<ArrayList<MatchScore>> call, Response<ArrayList<MatchScore>> response) {
+                    mMatchScores.clear();
+                    mMatchScores.addAll(response.body());
+                    mRecyclerViewAdapter.notifyDataSetChanged();
+                    mSummaryTextView.setText(getSummaryText());
+                }
 
-            @Override
-            public void onFailure(Call<ArrayList<MatchScore>> call, Throwable t) {
-                Snackbar snackbar = Snackbar.make(findViewById(R.id.schedule_cordinator_layout), "Check Internet Connection", Snackbar.LENGTH_INDEFINITE);
-                TextView textView = snackbar.getView().findViewById(android.support.design.R.id.snackbar_text);
-                textView.setTextColor(Color.WHITE);
-                snackbar.setAction("RETRY", new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        fetchRecentMatchesStats(mSelectedTeam, mSelectedFormat, mSelectedVenue, mSelectedOpponent, mSelectedNumMatches);
-                    }
-                });
-                snackbar.show();
-            }
-        });
+                @Override
+                public void onFailure(Call<ArrayList<MatchScore>> call, Throwable t) {
+                    Snackbar snackbar = Snackbar.make(findViewById(R.id.schedule_cordinator_layout), "Check Internet Connection", Snackbar.LENGTH_INDEFINITE);
+                    TextView textView = snackbar.getView().findViewById(android.support.design.R.id.snackbar_text);
+                    textView.setTextColor(Color.WHITE);
+                    snackbar.setAction("RETRY", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            fetchRecentMatchesStats(true);
+                        }
+                    });
+                    snackbar.show();
+                }
+            });
+        } else {
+            Rest.api().getVenueRecentMatches(queryParams).enqueue(new Callback<ArrayList<MatchScore>>() {
+                @Override
+                public void onResponse(Call<ArrayList<MatchScore>> call, Response<ArrayList<MatchScore>> response) {
+                    Log.e(TAG, ""+response.code());
+                    mMatchScores.clear();
+                    mMatchScores.addAll(response.body());
+                    mRecyclerViewAdapter.notifyDataSetChanged();
+                    mSummaryTextView.setText(getSummaryText());
+                }
+
+                @Override
+                public void onFailure(Call<ArrayList<MatchScore>> call, Throwable t) {
+                    Snackbar snackbar = Snackbar.make(findViewById(R.id.schedule_cordinator_layout), "Check Internet Connection", Snackbar.LENGTH_INDEFINITE);
+                    TextView textView = snackbar.getView().findViewById(android.support.design.R.id.snackbar_text);
+                    textView.setTextColor(Color.WHITE);
+                    snackbar.setAction("RETRY", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            fetchRecentMatchesStats(true);
+                        }
+                    });
+                    snackbar.show();
+                }
+            });
+
+        }
     }
 
     @Override
@@ -223,17 +260,18 @@ public class TeamStatsRecentMatchesActivity extends AppCompatActivity {
                 .setPositiveButton("Apply", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        mSelectedTeam = StringUtil.toCamelCase(teamSelected[0]);
+                        if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+                            mSelectedTeam = StringUtil.toCamelCase(teamSelected[0]);
+                            mSelectedVenue = StringUtil.toCamelCase(venueSelected[0]);
+                            mSelectedOpponent = StringUtil.toCamelCase(opponentSelected[0]);
+                            if (mSelectedVenue.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedVenue = null;
+                            if (mSelectedOpponent.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedOpponent = null;
+
+                        }
                         mSelectedFormat = formatSelected[0].toLowerCase();
-                        mSelectedVenue = StringUtil.toCamelCase(venueSelected[0]);
-                        mSelectedOpponent = StringUtil.toCamelCase(opponentSelected[0]);
                         mSelectedNumMatches = numMatchesSelected[0].toLowerCase();
-
                         if (mSelectedFormat.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedFormat = null;
-                        if (mSelectedVenue.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedVenue = null;
-                        if (mSelectedOpponent.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedOpponent = null;
-
-                        fetchRecentMatchesStats(mSelectedTeam, mSelectedFormat, mSelectedVenue, mSelectedOpponent, mSelectedNumMatches);
+                        fetchRecentMatchesStats(false);
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -242,6 +280,7 @@ public class TeamStatsRecentMatchesActivity extends AppCompatActivity {
     }
 
     private void setupSpinner(Spinner spinner, String[] data, String defaultItem, boolean camelCaseSearch) {
+        if (data == null) return;
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.spineer_item_layout,
                 R.id.format, data);
         spinner.setAdapter(adapter);
@@ -254,12 +293,13 @@ public class TeamStatsRecentMatchesActivity extends AppCompatActivity {
     }
 
     private String getSummaryText() {
-        String summary = StringUtil.toShort(mSelectedTeam);
-        if (mSelectedOpponent != null) summary += " vs " + StringUtil.toShort(mSelectedOpponent) + " ";
-        if (mSelectedFormat != null) summary += " in " + mSelectedFormat.toUpperCase() + " ";
+        String summary = "";
+        if (mSelectedTeam != null) summary += StringUtil.toShort(mSelectedTeam);
+        if (mSelectedOpponent != null) summary += " vs " + StringUtil.toShort(mSelectedOpponent);
+        if (mSelectedFormat != null) summary += " In " + mSelectedFormat.toUpperCase();
         if (mSelectedVenue != null) {
             String[] venueSplits = mSelectedVenue.split(Pattern.quote(","));
-            summary += " at " + StringUtil.toCamelCase(venueSplits[venueSplits.length-1]);
+            summary += " At " + StringUtil.toCamelCase(venueSplits[venueSplits.length-1]);
         }
         return summary;
     }

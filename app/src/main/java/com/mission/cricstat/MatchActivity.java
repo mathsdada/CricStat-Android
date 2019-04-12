@@ -124,17 +124,32 @@ public class MatchActivity extends AppCompatActivity {
 
         @Override
         public Fragment getItem(int position) {
+            Fragment fragment;
+            Bundle bundle = new Bundle();
+            Gson gson = new Gson();
+            bundle.putString(TeamStatsFragment.KEY_MATCH, gson.toJson(mMatch));
             // getItem is called to instantiate the fragment for the given page.
             // Return a PlaceholderFragment (defined as a static inner class below).
-            if (position == 0) {
-                Fragment fragment = new TeamStatsFragment();
-                Bundle bundle = new Bundle();
-                Gson gson = new Gson();
-                bundle.putString(TeamStatsFragment.KEY_MATCH, gson.toJson(mMatch));
-                fragment.setArguments(bundle);
-                return fragment;
+            switch (position) {
+                case 0: { // Team Stats
+                    fragment = new TeamStatsFragment();
+                    break;
+                }
+                case 1: { // Player Stats
+                    fragment = PlaceholderFragment.newInstance(position + 1);
+                    break;
+                }
+                case 2: { // Venue Stats
+                    fragment = new VenueStatsFragment();
+                    break;
+                }
+                default: {
+                    fragment = PlaceholderFragment.newInstance(position + 1);
+                    break;
+                }
             }
-            return PlaceholderFragment.newInstance(position + 1);
+            fragment.setArguments(bundle);
+            return fragment;
         }
 
         @Override

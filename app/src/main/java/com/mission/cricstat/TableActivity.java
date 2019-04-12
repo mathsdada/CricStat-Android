@@ -35,19 +35,14 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class TableActivity extends AppCompatActivity {
-
-    public static final String KEY_STATS_TYPE = "STATS_TYPE";
-    public static final String KEY_PLAYING_TEAMS = "KEY_PLAYING_TEAMS";
-    public static final String KEY_MATCH_FORMAT = "KEY_MATCH_FORMAT";
-    public static final String KEY_MATCH_VENUE = "KEY_MATCH_VENUE";
     private static final String SPINNER_ITEM_ALL = "ALL";
     private static final String TAG = TableActivity.class.getSimpleName();
 
-    private String mTitle;
-    private String[] mTeamSpinnerItems;
+    private String mStatsType, mStatsSubType;
+    private String[] mTeamSpinnerItems = null;
     private String[] mFormatSpinnerItems = {Constants.FORMAT_ALL, Constants.FORMAT_T20, Constants.FORMAT_OD, Constants.FORMAT_TEST};
-    private String[] mVenueSpinnerItems;
-    private String[] mOpponentSpinnerItems;
+    private String[] mVenueSpinnerItems = null;
+    private String[] mOpponentSpinnerItems = null;
     private String[] mNumMatchesSpinnerItems = {Constants.MATCHES_5, Constants.MATCHES_10, Constants.MATCHES_15};
 
     private String mSelectedTeam = null, mSelectedFormat = null, mSelectedVenue = null,
@@ -67,17 +62,23 @@ public class TableActivity extends AppCompatActivity {
         mProgressBar = findViewById(R.id.progressBar);
         mTableView = findViewById(R.id.my_TableView);
 
-        mTitle = getIntent().getExtras().getString(KEY_STATS_TYPE);
-        mSelectedFormat = getIntent().getExtras().getString(KEY_MATCH_FORMAT);
-        mTeamSpinnerItems = getIntent().getExtras().getStringArray(KEY_PLAYING_TEAMS);
-        mVenueSpinnerItems = new String[]{SPINNER_ITEM_ALL, getIntent().getExtras().getString(KEY_MATCH_VENUE)};
-        mOpponentSpinnerItems = new String[]{SPINNER_ITEM_ALL, mTeamSpinnerItems[1], mTeamSpinnerItems[0]};
+        mStatsType = getIntent().getExtras().getString(Constants.KEY_STATS_TYPE);
+        mStatsSubType = getIntent().getExtras().getString(Constants.KEY_STATS_SUBTYPE);
+        if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+            mTeamSpinnerItems = getIntent().getExtras().getStringArray(Constants.KEY_PLAYING_TEAMS);
+            mVenueSpinnerItems = new String[]{SPINNER_ITEM_ALL, getIntent().getExtras().getString(Constants.KEY_MATCH_VENUE)};
+            mOpponentSpinnerItems = new String[]{SPINNER_ITEM_ALL, mTeamSpinnerItems[1], mTeamSpinnerItems[0]};
 
-        getSupportActionBar().setTitle(mTitle);
+            mSelectedTeam = mTeamSpinnerItems[0];
+        } else {
+            mSelectedVenue = getIntent().getExtras().getString(Constants.KEY_MATCH_VENUE);
+        }
+        mSelectedFormat = getIntent().getExtras().getString(Constants.KEY_MATCH_FORMAT);
+        mSelectedNumMatches = mNumMatchesSpinnerItems[0];
+
+        getSupportActionBar().setTitle(mStatsSubType);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        mSelectedTeam = mTeamSpinnerItems[0];
-        mSelectedNumMatches = mNumMatchesSpinnerItems[0];
 
         initializeTableView(mTableView);
         fetchStats(false);
@@ -85,34 +86,41 @@ public class TableActivity extends AppCompatActivity {
 
     private void initializeTableView(TableView tableView) {
         // Create TableView Adapter
-        mTableAdapter = new MyTableAdapter(this, mTitle);
+        mTableAdapter = new MyTableAdapter(this, mStatsSubType);
         tableView.setAdapter(mTableAdapter);
     }
 
     private void fetchStats(boolean isRetry) {
-        switch (mTitle) {
-            case StatsCategory.TEAM_STATS_BATTING_MOST_RUNS:
-            case StatsCategory.TEAM_STATS_BATTING_BEST_AVG:
-            case StatsCategory.TEAM_STATS_BATTING_BEST_SR:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_4S:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_6S:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_100S:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_50S:
-            case StatsCategory.TEAM_STATS_BATTING_MOST_DUCKS:
+        switch (mStatsSubType) {
+            case StatsCategory.BATTING_MOST_RUNS:
+            case StatsCategory.BATTING_BEST_AVG:
+            case StatsCategory.BATTING_BEST_SR:
+            case StatsCategory.BATTING_MOST_4S:
+            case StatsCategory.BATTING_MOST_6S:
+            case StatsCategory.BATTING_MOST_100S:
+            case StatsCategory.BATTING_MOST_50S:
+            case StatsCategory.BATTING_MOST_DUCKS:
             {
-                fetchTeamBattingStats(isRetry);
+                if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+                    fetchTeamBattingStats(isRetry);
+                } else {
+                    fetchVenueBattingStats(isRetry);
+                }
                 break;
             }
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_WICKETS:
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_MAIDENS:
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_4_PLUS:
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_5_PLUS:
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_AVERAGE:
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_SR:
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_ECONOMY:
+            case StatsCategory.BOWLING_MOST_WICKETS:
+            case StatsCategory.BOWLING_MOST_MAIDENS:
+            case StatsCategory.BOWLING_MOST_4_PLUS:
+            case StatsCategory.BOWLING_MOST_5_PLUS:
+            case StatsCategory.BOWLING_BEST_AVERAGE:
+            case StatsCategory.BOWLING_BEST_SR:
+            case StatsCategory.BOWLING_BEST_ECONOMY:
             {
-                Log.e(TAG, "Fetching " + mTitle);
-                fetchTeamBowlingStats(isRetry);
+                if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+                    fetchTeamBowlingStats(isRetry);
+                } else {
+                    fetchVenueBowlingStats(isRetry);
+                }
                 break;
             }
         }
@@ -122,7 +130,13 @@ public class TableActivity extends AppCompatActivity {
         Map<String, String> queryParams = new HashMap<>();
         if (mSelectedTeam != null) queryParams.put("name", mSelectedTeam.toLowerCase());
         if (mSelectedFormat != null) queryParams.put("format", mSelectedFormat.toLowerCase());
-        if (mSelectedVenue != null) queryParams.put("venue", mSelectedVenue.toLowerCase());
+        if (mSelectedVenue != null) {
+            if (mStatsType.equals(StatsCategory.VENUE_STATS)) {
+                queryParams.put("name", mSelectedVenue.toLowerCase());
+            } else {
+                queryParams.put("venue", mSelectedVenue.toLowerCase());
+            }
+        }
         if (mSelectedOpponent != null) queryParams.put("against_team", mSelectedOpponent.toLowerCase());
         if (mSelectedNumMatches != null) queryParams.put("num_matches", mSelectedNumMatches);
 
@@ -132,8 +146,8 @@ public class TableActivity extends AppCompatActivity {
         mQueryMap = queryParams;
 
         showProgressBar();
-        switch (mTitle) {
-            case StatsCategory.TEAM_STATS_BATTING_MOST_RUNS: {
+        switch (mStatsSubType) {
+            case StatsCategory.BATTING_MOST_RUNS: {
                 Rest.api().getTeamBattingMostRuns(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
@@ -148,7 +162,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BATTING_BEST_AVG: {
+            case StatsCategory.BATTING_BEST_AVG: {
                 Rest.api().getTeamBattingBestAverage(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
@@ -163,7 +177,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BATTING_BEST_SR: {
+            case StatsCategory.BATTING_BEST_SR: {
                 Rest.api().getTeamBattingBestStrikeRate(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
@@ -178,7 +192,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BATTING_MOST_4S: {
+            case StatsCategory.BATTING_MOST_4S: {
                 Rest.api().getTeamBattingMostFours(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
@@ -193,7 +207,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BATTING_MOST_6S: {
+            case StatsCategory.BATTING_MOST_6S: {
                 Rest.api().getTeamBattingMostSixes(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
@@ -208,7 +222,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BATTING_MOST_50S: {
+            case StatsCategory.BATTING_MOST_50S: {
                 Rest.api().getTeamBattingMostFifties(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
@@ -223,7 +237,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BATTING_MOST_100S: {
+            case StatsCategory.BATTING_MOST_100S: {
                 Rest.api().getTeamBattingMostHundreds(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
@@ -238,8 +252,148 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BATTING_MOST_DUCKS: {
+            case StatsCategory.BATTING_MOST_DUCKS: {
                 Rest.api().getTeamBattingMostDucks(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
+                        updateTeamBattingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBattingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            default:{
+                hideProgressBar();
+                break;
+            }
+        }
+    }
+
+    private void fetchVenueBattingStats(boolean isRetry) {
+        Map<String, String> queryParams = new HashMap<>();
+        if (mSelectedFormat != null) queryParams.put("format", mSelectedFormat.toLowerCase());
+        if (mSelectedVenue != null) queryParams.put("name", mSelectedVenue.toLowerCase());
+        if (mSelectedNumMatches != null) queryParams.put("num_matches", mSelectedNumMatches);
+
+        if (!isRetry) {
+            if (mQueryMap != null && mQueryMap.equals(queryParams)) return;
+        }
+        mQueryMap = queryParams;
+
+        showProgressBar();
+        switch (mStatsSubType) {
+            case StatsCategory.BATTING_MOST_RUNS: {
+                Rest.api().getVenueBattingMostRuns(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
+                        updateTeamBattingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBattingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BATTING_BEST_AVG: {
+                Rest.api().getVenueBattingBestAverage(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
+                        updateTeamBattingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBattingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BATTING_BEST_SR: {
+                Rest.api().getVenueBattingBestStrikeRate(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
+                        updateTeamBattingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBattingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BATTING_MOST_4S: {
+                Rest.api().getVenueBattingMostFours(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
+                        updateTeamBattingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBattingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BATTING_MOST_6S: {
+                Rest.api().getVenueBattingMostSixes(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
+                        updateTeamBattingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBattingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BATTING_MOST_50S: {
+                Rest.api().getVenueBattingMostFifties(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
+                        updateTeamBattingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBattingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BATTING_MOST_100S: {
+                Rest.api().getVenueBattingMostHundreds(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
+                        updateTeamBattingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBattingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BATTING_MOST_DUCKS: {
+                Rest.api().getVenueBattingMostDucks(mQueryMap).enqueue(new Callback<ArrayList<TeamBattingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBattingStatsResponse>> call, Response<ArrayList<TeamBattingStatsResponse>> response) {
                         updateTeamBattingStatsTableAdapter(response.body());
@@ -274,8 +428,8 @@ public class TableActivity extends AppCompatActivity {
         mQueryMap = queryParams;
 
         showProgressBar();
-        switch (mTitle) {
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_WICKETS: {
+        switch (mStatsSubType) {
+            case StatsCategory.BOWLING_MOST_WICKETS: {
                 Log.e(TAG, queryParams.toString());
                 Rest.api().getTeamBowlingMostWickets(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
@@ -292,7 +446,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_MAIDENS: {
+            case StatsCategory.BOWLING_MOST_MAIDENS: {
                 Rest.api().getTeamBowlingMostMaidens(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
@@ -307,7 +461,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_4_PLUS: {
+            case StatsCategory.BOWLING_MOST_4_PLUS: {
                 Rest.api().getTeamBowlingMostFourPlusWkts(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
@@ -322,7 +476,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BOWLING_MOST_5_PLUS: {
+            case StatsCategory.BOWLING_MOST_5_PLUS: {
                 Rest.api().getTeamBowlingMostFivePlusWkts(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
@@ -337,7 +491,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_AVERAGE: {
+            case StatsCategory.BOWLING_BEST_AVERAGE: {
                 Rest.api().getTeamBowlingBestAverage(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
@@ -352,7 +506,7 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_SR: {
+            case StatsCategory.BOWLING_BEST_SR: {
                 Rest.api().getTeamBowlingBestStrikeRate(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
@@ -367,8 +521,135 @@ public class TableActivity extends AppCompatActivity {
                 });
                 break;
             }
-            case StatsCategory.TEAM_STATS_BOWLING_BEST_ECONOMY: {
+            case StatsCategory.BOWLING_BEST_ECONOMY: {
                 Rest.api().getTeamBowlingBestEconomy(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
+                        updateTeamBowlingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBowlingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            default: {
+                break;
+            }
+
+        }
+    }
+
+    private void fetchVenueBowlingStats(boolean isRetry) {
+        Map<String, String> queryParams = new HashMap<>();
+        if (mSelectedFormat != null) queryParams.put("format", mSelectedFormat.toLowerCase());
+        if (mSelectedVenue != null) queryParams.put("name", mSelectedVenue.toLowerCase());
+        if (mSelectedNumMatches != null) queryParams.put("num_matches", mSelectedNumMatches);
+
+        if (!isRetry) {
+            if (mQueryMap != null && mQueryMap.equals(queryParams)) return;
+        }
+        mQueryMap = queryParams;
+
+        showProgressBar();
+        switch (mStatsSubType) {
+            case StatsCategory.BOWLING_MOST_WICKETS: {
+                Log.e(TAG, queryParams.toString());
+                Rest.api().getVenueBowlingMostWickets(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
+                        updateTeamBowlingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBowlingStatsResponse>> call, Throwable t) {
+                        Log.e(TAG, t.getMessage());
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BOWLING_MOST_MAIDENS: {
+                Rest.api().getVenueBowlingMostMaidens(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
+                        updateTeamBowlingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBowlingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BOWLING_MOST_4_PLUS: {
+                Rest.api().getVenueBowlingMostFourPlusWkts(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
+                        updateTeamBowlingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBowlingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BOWLING_MOST_5_PLUS: {
+                Rest.api().getVenueBowlingMostFivePlusWkts(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
+                        updateTeamBowlingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBowlingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BOWLING_BEST_AVERAGE: {
+                Rest.api().getVenueBowlingBestAverage(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
+                        updateTeamBowlingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBowlingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BOWLING_BEST_SR: {
+                Rest.api().getVenueBowlingBestStrikeRate(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
+                    @Override
+                    public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
+                        updateTeamBowlingStatsTableAdapter(response.body());
+                        hideProgressBar();
+                    }
+
+                    @Override
+                    public void onFailure(Call<ArrayList<TeamBowlingStatsResponse>> call, Throwable t) {
+                        showRetrySnackBar();
+                    }
+                });
+                break;
+            }
+            case StatsCategory.BOWLING_BEST_ECONOMY: {
+                Rest.api().getVenueBowlingBestEconomy(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
                         updateTeamBowlingStatsTableAdapter(response.body());
@@ -486,16 +767,16 @@ public class TableActivity extends AppCompatActivity {
                 .setPositiveButton("Apply", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        mSelectedTeam = StringUtil.toCamelCase(teamSelected[0]);
+                        if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+                            mSelectedTeam = StringUtil.toCamelCase(teamSelected[0]);
+                            mSelectedVenue = StringUtil.toCamelCase(venueSelected[0]);
+                            mSelectedOpponent = StringUtil.toCamelCase(opponentSelected[0]);
+                            if (mSelectedVenue.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedVenue = null;
+                            if (mSelectedOpponent.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedOpponent = null;
+                        }
                         mSelectedFormat = formatSelected[0].toLowerCase();
-                        mSelectedVenue = StringUtil.toCamelCase(venueSelected[0]);
-                        mSelectedOpponent = StringUtil.toCamelCase(opponentSelected[0]);
-                        mSelectedNumMatches = numMatchesSelected[0].toLowerCase();
-
                         if (mSelectedFormat.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedFormat = null;
-                        if (mSelectedVenue.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedVenue = null;
-                        if (mSelectedOpponent.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedOpponent = null;
-
+                        mSelectedNumMatches = numMatchesSelected[0].toLowerCase();
                         fetchStats(false);
                     }
                 })
@@ -505,6 +786,7 @@ public class TableActivity extends AppCompatActivity {
     }
 
     private void setupSpinner(Spinner spinner, String[] data, String defaultItem, boolean camelCaseSearch) {
+        if (data == null) return;
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.spineer_item_layout,
                 R.id.format, data);
         spinner.setAdapter(adapter);

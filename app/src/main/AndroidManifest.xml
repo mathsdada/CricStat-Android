@@ -23,7 +23,7 @@
                 android:value="com.mission.cricstat.MatchActivity" />
         </activity>
         <activity
-            android:name=".TeamStatsRecentMatchesActivity"
+            android:name=".RecentMatchesActivity"
             android:label="@string/title_activity_stats"
             android:parentActivityName=".MatchActivity"
             android:theme="@style/AppTheme.NoActionBar">

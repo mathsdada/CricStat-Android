@@ -6,9 +6,17 @@ import com.google.gson.annotations.SerializedName;
 import java.util.ArrayList;
 
 public class MatchScore {
+    @SerializedName("title")
+    @Expose
+    private String mTitle;
+
     @SerializedName("outcome")
     @Expose
     private String mOutcome;
+
+    @SerializedName("format")
+    @Expose
+    private String mFormat;
 
     @SerializedName("inningsScores")
     @Expose
@@ -36,5 +44,13 @@ public class MatchScore {
 
     public String getStatus() {
         return mStatus;
+    }
+
+    public String getTitle() {
+        return mTitle;
+    }
+
+    public String getFormat() {
+        return mFormat;
     }
 }

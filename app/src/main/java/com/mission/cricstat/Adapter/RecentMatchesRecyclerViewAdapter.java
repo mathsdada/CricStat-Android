@@ -16,11 +16,11 @@ import com.mission.cricstat.Rest.Model.TeamStats.MatchScore;
 
 import java.util.ArrayList;
 
-public class TeamStatsRecentMatchesRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-    private static final String TAG = TeamStatsRecentMatchesRecyclerViewAdapter.class.getSimpleName();
+public class RecentMatchesRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+    private static final String TAG = RecentMatchesRecyclerViewAdapter.class.getSimpleName();
     private ArrayList<MatchScore> mMatchScores;
 
-    public TeamStatsRecentMatchesRecyclerViewAdapter(ArrayList<MatchScore> matchScores) {
+    public RecentMatchesRecyclerViewAdapter(ArrayList<MatchScore> matchScores) {
         mMatchScores = matchScores;
     }
 
@@ -73,14 +73,22 @@ public class TeamStatsRecentMatchesRecyclerViewAdapter extends RecyclerView.Adap
         void bindViews(MatchScore matchScore) {
             String outcome = matchScore.getOutcome();
             outcome = outcome.substring(0,1).toUpperCase() + outcome.substring(1);
-            switch (matchScore.getStatus()) {
-                case "l" : mTextViewOutcome.setBackgroundResource(R.color.colorSecondaryLight); break;
-                case "w" : mTextViewOutcome.setBackgroundResource(R.color.colorPrimaryLight); break;
-                case "d" : mTextViewOutcome.setBackgroundResource(android.R.color.darker_gray);
-                case "nr": mTextViewOutcome.setBackgroundResource(android.R.color.holo_blue_light);
-                default: mTextViewOutcome.setBackgroundResource(android.R.color.black);
+            if (matchScore.getStatus() != null) {
+                switch (matchScore.getStatus()) {
+                    case "l":
+                        mTextViewOutcome.setBackgroundResource(R.color.colorSecondaryLight);
+                        break;
+                    case "w":
+                        mTextViewOutcome.setBackgroundResource(R.color.colorPrimaryLight);
+                        break;
+                    case "d":
+                        mTextViewOutcome.setBackgroundResource(android.R.color.darker_gray);
+                    case "nr":
+                        mTextViewOutcome.setBackgroundResource(android.R.color.holo_blue_light);
+                    default:
+                        mTextViewOutcome.setBackgroundResource(android.R.color.black);
+                }
             }
-            if (matchScore.getStatus().equals("l")) mTextViewOutcome.setBackgroundResource(R.color.colorSecondaryLight);
 
             mTextViewOutcome.setText(outcome);
             mTextViewMatchDate.setText(StringUtil.epochToDate(matchScore.getDateEpoch()));
