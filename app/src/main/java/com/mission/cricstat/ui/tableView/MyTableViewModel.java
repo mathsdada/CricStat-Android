@@ -1,7 +1,5 @@
 package com.mission.cricstat.ui.tableView;
 
-import com.mission.cricstat.Common.StringUtil;
-import com.mission.cricstat.Rest.Model.TeamStats.TeamBattingStatsResponse;
 import com.mission.cricstat.ui.tableView.model.CellModel;
 import com.mission.cricstat.ui.tableView.model.ColumnHeaderModel;
 import com.mission.cricstat.ui.tableView.model.RowHeaderModel;

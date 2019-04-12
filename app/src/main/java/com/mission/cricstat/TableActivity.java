@@ -1,26 +1,20 @@
 package com.mission.cricstat;
 
-import android.content.DialogInterface;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.ProgressBar;
-import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.evrencoskun.tableview.TableView;
 import com.mission.cricstat.Common.Constants;
 import com.mission.cricstat.Common.StatsCategory;
-import com.mission.cricstat.Common.StringUtil;
 import com.mission.cricstat.Rest.Model.TeamStats.TeamBattingStatsResponse;
 import com.mission.cricstat.Rest.Model.TeamStats.TeamBowlingStatsResponse;
 import com.mission.cricstat.Rest.Rest;
@@ -34,16 +28,13 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import static com.mission.cricstat.Common.Constants.SPINNER_ITEM_ALL;
+
 public class TableActivity extends AppCompatActivity {
-    private static final String SPINNER_ITEM_ALL = "ALL";
     private static final String TAG = TableActivity.class.getSimpleName();
 
+    private Filter mFilter;
     private String mStatsType, mStatsSubType;
-    private String[] mTeamSpinnerItems = null;
-    private String[] mFormatSpinnerItems = {Constants.FORMAT_ALL, Constants.FORMAT_T20, Constants.FORMAT_OD, Constants.FORMAT_TEST};
-    private String[] mVenueSpinnerItems = null;
-    private String[] mOpponentSpinnerItems = null;
-    private String[] mNumMatchesSpinnerItems = {Constants.MATCHES_5, Constants.MATCHES_10, Constants.MATCHES_15};
 
     private String mSelectedTeam = null, mSelectedFormat = null, mSelectedVenue = null,
                     mSelectedOpponent = null, mSelectedNumMatches = null;
@@ -59,29 +50,41 @@ public class TableActivity extends AppCompatActivity {
         setContentView(R.layout.activity_table);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
         mProgressBar = findViewById(R.id.progressBar);
         mTableView = findViewById(R.id.my_TableView);
 
         mStatsType = getIntent().getExtras().getString(Constants.KEY_STATS_TYPE);
         mStatsSubType = getIntent().getExtras().getString(Constants.KEY_STATS_SUBTYPE);
-        if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
-            mTeamSpinnerItems = getIntent().getExtras().getStringArray(Constants.KEY_PLAYING_TEAMS);
-            mVenueSpinnerItems = new String[]{SPINNER_ITEM_ALL, getIntent().getExtras().getString(Constants.KEY_MATCH_VENUE)};
-            mOpponentSpinnerItems = new String[]{SPINNER_ITEM_ALL, mTeamSpinnerItems[1], mTeamSpinnerItems[0]};
-
-            mSelectedTeam = mTeamSpinnerItems[0];
-        } else {
-            mSelectedVenue = getIntent().getExtras().getString(Constants.KEY_MATCH_VENUE);
-        }
-        mSelectedFormat = getIntent().getExtras().getString(Constants.KEY_MATCH_FORMAT);
-        mSelectedNumMatches = mNumMatchesSpinnerItems[0];
 
         getSupportActionBar().setTitle(mStatsSubType);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-
         initializeTableView(mTableView);
+        initializeFilter();
         fetchStats(false);
+    }
+
+    private void initializeFilter() {
+        String[] teamArray = null, formatArray = null, venueArray = null, opponentArray = null, numMatchesArray = null;
+        if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+            teamArray = getIntent().getExtras().getStringArray(Constants.KEY_PLAYING_TEAMS);
+            venueArray = new String[]{SPINNER_ITEM_ALL, getIntent().getExtras().getString(Constants.KEY_MATCH_VENUE)};
+            opponentArray = new String[]{SPINNER_ITEM_ALL, teamArray[1], teamArray[0]};
+
+            mSelectedTeam = teamArray[0];
+        } else {
+            mSelectedVenue = getIntent().getExtras().getString(Constants.KEY_MATCH_VENUE);
+        }
+        formatArray = new String[]{Constants.FORMAT_ALL, Constants.FORMAT_T20, Constants.FORMAT_OD, Constants.FORMAT_TEST};
+        numMatchesArray = new String[]{Constants.MATCHES_5, Constants.MATCHES_10, Constants.MATCHES_15};
+
+        mSelectedFormat = getIntent().getExtras().getString(Constants.KEY_MATCH_FORMAT);
+        mSelectedNumMatches = numMatchesArray[0];
+
+        mFilter = new Filter(this);
+        mFilter.setSelectionArray(teamArray, formatArray, venueArray, opponentArray, numMatchesArray);
+        mFilter.setDefaultSelection(mSelectedTeam, mSelectedFormat, mSelectedVenue, mSelectedOpponent, mSelectedNumMatches);
     }
 
     private void initializeTableView(TableView tableView) {
@@ -91,42 +94,6 @@ public class TableActivity extends AppCompatActivity {
     }
 
     private void fetchStats(boolean isRetry) {
-        switch (mStatsSubType) {
-            case StatsCategory.BATTING_MOST_RUNS:
-            case StatsCategory.BATTING_BEST_AVG:
-            case StatsCategory.BATTING_BEST_SR:
-            case StatsCategory.BATTING_MOST_4S:
-            case StatsCategory.BATTING_MOST_6S:
-            case StatsCategory.BATTING_MOST_100S:
-            case StatsCategory.BATTING_MOST_50S:
-            case StatsCategory.BATTING_MOST_DUCKS:
-            {
-                if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
-                    fetchTeamBattingStats(isRetry);
-                } else {
-                    fetchVenueBattingStats(isRetry);
-                }
-                break;
-            }
-            case StatsCategory.BOWLING_MOST_WICKETS:
-            case StatsCategory.BOWLING_MOST_MAIDENS:
-            case StatsCategory.BOWLING_MOST_4_PLUS:
-            case StatsCategory.BOWLING_MOST_5_PLUS:
-            case StatsCategory.BOWLING_BEST_AVERAGE:
-            case StatsCategory.BOWLING_BEST_SR:
-            case StatsCategory.BOWLING_BEST_ECONOMY:
-            {
-                if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
-                    fetchTeamBowlingStats(isRetry);
-                } else {
-                    fetchVenueBowlingStats(isRetry);
-                }
-                break;
-            }
-        }
-    }
-
-    private void fetchTeamBattingStats(boolean isRetry) {
         Map<String, String> queryParams = new HashMap<>();
         if (mSelectedTeam != null) queryParams.put("name", mSelectedTeam.toLowerCase());
         if (mSelectedFormat != null) queryParams.put("format", mSelectedFormat.toLowerCase());
@@ -145,6 +112,42 @@ public class TableActivity extends AppCompatActivity {
         }
         mQueryMap = queryParams;
 
+        switch (mStatsSubType) {
+            case StatsCategory.BATTING_MOST_RUNS:
+            case StatsCategory.BATTING_BEST_AVG:
+            case StatsCategory.BATTING_BEST_SR:
+            case StatsCategory.BATTING_MOST_4S:
+            case StatsCategory.BATTING_MOST_6S:
+            case StatsCategory.BATTING_MOST_100S:
+            case StatsCategory.BATTING_MOST_50S:
+            case StatsCategory.BATTING_MOST_DUCKS:
+            {
+                if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+                    fetchTeamBattingStats();
+                } else {
+                    fetchVenueBattingStats();
+                }
+                break;
+            }
+            case StatsCategory.BOWLING_MOST_WICKETS:
+            case StatsCategory.BOWLING_MOST_MAIDENS:
+            case StatsCategory.BOWLING_MOST_4_PLUS:
+            case StatsCategory.BOWLING_MOST_5_PLUS:
+            case StatsCategory.BOWLING_BEST_AVERAGE:
+            case StatsCategory.BOWLING_BEST_SR:
+            case StatsCategory.BOWLING_BEST_ECONOMY:
+            {
+                if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
+                    fetchTeamBowlingStats();
+                } else {
+                    fetchVenueBowlingStats();
+                }
+                break;
+            }
+        }
+    }
+
+    private void fetchTeamBattingStats() {
         showProgressBar();
         switch (mStatsSubType) {
             case StatsCategory.BATTING_MOST_RUNS: {
@@ -274,17 +277,7 @@ public class TableActivity extends AppCompatActivity {
         }
     }
 
-    private void fetchVenueBattingStats(boolean isRetry) {
-        Map<String, String> queryParams = new HashMap<>();
-        if (mSelectedFormat != null) queryParams.put("format", mSelectedFormat.toLowerCase());
-        if (mSelectedVenue != null) queryParams.put("name", mSelectedVenue.toLowerCase());
-        if (mSelectedNumMatches != null) queryParams.put("num_matches", mSelectedNumMatches);
-
-        if (!isRetry) {
-            if (mQueryMap != null && mQueryMap.equals(queryParams)) return;
-        }
-        mQueryMap = queryParams;
-
+    private void fetchVenueBattingStats() {
         showProgressBar();
         switch (mStatsSubType) {
             case StatsCategory.BATTING_MOST_RUNS: {
@@ -414,23 +407,10 @@ public class TableActivity extends AppCompatActivity {
         }
     }
 
-    private void fetchTeamBowlingStats(boolean isRetry) {
-        Map<String, String> queryParams = new HashMap<>();
-        if (mSelectedTeam != null) queryParams.put("name", mSelectedTeam.toLowerCase());
-        if (mSelectedFormat != null) queryParams.put("format", mSelectedFormat.toLowerCase());
-        if (mSelectedVenue != null) queryParams.put("venue", mSelectedVenue.toLowerCase());
-        if (mSelectedOpponent != null) queryParams.put("against_team", mSelectedOpponent.toLowerCase());
-        if (mSelectedNumMatches != null) queryParams.put("num_matches", mSelectedNumMatches);
-
-        if (!isRetry) {
-            if (mQueryMap != null && mQueryMap.equals(queryParams)) return;
-        }
-        mQueryMap = queryParams;
-
+    private void fetchTeamBowlingStats() {
         showProgressBar();
         switch (mStatsSubType) {
             case StatsCategory.BOWLING_MOST_WICKETS: {
-                Log.e(TAG, queryParams.toString());
                 Rest.api().getTeamBowlingMostWickets(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
@@ -543,21 +523,10 @@ public class TableActivity extends AppCompatActivity {
         }
     }
 
-    private void fetchVenueBowlingStats(boolean isRetry) {
-        Map<String, String> queryParams = new HashMap<>();
-        if (mSelectedFormat != null) queryParams.put("format", mSelectedFormat.toLowerCase());
-        if (mSelectedVenue != null) queryParams.put("name", mSelectedVenue.toLowerCase());
-        if (mSelectedNumMatches != null) queryParams.put("num_matches", mSelectedNumMatches);
-
-        if (!isRetry) {
-            if (mQueryMap != null && mQueryMap.equals(queryParams)) return;
-        }
-        mQueryMap = queryParams;
-
+    private void fetchVenueBowlingStats() {
         showProgressBar();
         switch (mStatsSubType) {
             case StatsCategory.BOWLING_MOST_WICKETS: {
-                Log.e(TAG, queryParams.toString());
                 Rest.api().getVenueBowlingMostWickets(mQueryMap).enqueue(new Callback<ArrayList<TeamBowlingStatsResponse>>() {
                     @Override
                     public void onResponse(Call<ArrayList<TeamBowlingStatsResponse>> call, Response<ArrayList<TeamBowlingStatsResponse>> response) {
@@ -689,113 +658,18 @@ public class TableActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() != R.id.action_filter) return super.onOptionsItemSelected(item);
-
-        final String[] teamSelected = new String[1];
-        final String[] formatSelected = new String[1];
-        final String[] venueSelected = new String[1];
-        final String[] opponentSelected = new String[1];
-        final String[] numMatchesSelected = new String[1];
-        View view = this.getLayoutInflater().inflate(R.layout.layout_filter, null);
-        Spinner teamSpinner = view.findViewById(R.id.team_spinner);
-        Spinner formatSpinner = view.findViewById(R.id.format_spinner);
-        Spinner venueSpinner = view.findViewById(R.id.venue_spinner);
-        Spinner oppTeamSpinner = view.findViewById(R.id.opp_team_spinner);
-        Spinner numMatchesSpinner = view.findViewById(R.id.num_matches_spinner);
-        setupSpinner(teamSpinner, mTeamSpinnerItems, mSelectedTeam, true);
-        setupSpinner(formatSpinner, mFormatSpinnerItems, mSelectedFormat, false);
-        setupSpinner(venueSpinner, mVenueSpinnerItems, mSelectedVenue, true);
-        setupSpinner(oppTeamSpinner, mOpponentSpinnerItems, mSelectedOpponent, true);
-        setupSpinner(numMatchesSpinner, mNumMatchesSpinnerItems, mSelectedNumMatches, false);
-
-        teamSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        mFilter.getSelection(new Filter.SelectionListener() {
             @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                teamSelected[0] = mTeamSpinnerItems[position];
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                teamSelected[0] = mSelectedTeam;
+            public void onSelectionListener(String team, String format, String venue, String opponent, String numMatches) {
+                mSelectedTeam = team;
+                mSelectedFormat = format;
+                mSelectedVenue = venue;
+                mSelectedOpponent = opponent;
+                mSelectedNumMatches = numMatches;
+                fetchStats(false);
             }
         });
-        formatSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                formatSelected[0] = mFormatSpinnerItems[position];
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                formatSelected[0] = mSelectedFormat;
-            }
-        });
-        venueSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                venueSelected[0] = mVenueSpinnerItems[position];
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                venueSelected[0] = mSelectedVenue;
-            }
-        });
-        oppTeamSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                opponentSelected[0] = mOpponentSpinnerItems[position];
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                opponentSelected[0] = mSelectedOpponent;
-            }
-        });
-        numMatchesSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                numMatchesSelected[0] = mNumMatchesSpinnerItems[position];
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                numMatchesSelected[0] = mSelectedNumMatches;
-            }
-        });
-
-        new AlertDialog.Builder(this).setView(view)
-                .setPositiveButton("Apply", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        if (mStatsType.equals(StatsCategory.TEAM_STATS)) {
-                            mSelectedTeam = StringUtil.toCamelCase(teamSelected[0]);
-                            mSelectedVenue = StringUtil.toCamelCase(venueSelected[0]);
-                            mSelectedOpponent = StringUtil.toCamelCase(opponentSelected[0]);
-                            if (mSelectedVenue.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedVenue = null;
-                            if (mSelectedOpponent.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedOpponent = null;
-                        }
-                        mSelectedFormat = formatSelected[0].toLowerCase();
-                        if (mSelectedFormat.toUpperCase().equals(SPINNER_ITEM_ALL)) mSelectedFormat = null;
-                        mSelectedNumMatches = numMatchesSelected[0].toLowerCase();
-                        fetchStats(false);
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
         return true;
-    }
-
-    private void setupSpinner(Spinner spinner, String[] data, String defaultItem, boolean camelCaseSearch) {
-        if (data == null) return;
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.spineer_item_layout,
-                R.id.format, data);
-        spinner.setAdapter(adapter);
-        if (defaultItem != null) {
-            if (camelCaseSearch) defaultItem = StringUtil.toCamelCase(defaultItem);
-            else defaultItem = defaultItem.toUpperCase();
-            spinner.setSelection(adapter.getPosition(defaultItem));
-        }
-
     }
 
     public void showProgressBar() {

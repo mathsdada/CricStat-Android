@@ -16,4 +16,6 @@ public class Constants {
     public static final String KEY_PLAYING_TEAMS = "KEY_PLAYING_TEAMS";
     public static final String KEY_MATCH_FORMAT = "KEY_MATCH_FORMAT";
     public static final String KEY_MATCH_VENUE = "KEY_MATCH_VENUE";
+
+    public static final String SPINNER_ITEM_ALL = "ALL";
 }
