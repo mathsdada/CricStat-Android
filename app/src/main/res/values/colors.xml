@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#310021</color>
+    <color name="colorPrimaryDark">#140000</color>
+    <color name="colorPrimaryLight">#5d2948</color>
+    <color name="colorSecondary">#e20325</color>
+    <color name="colorSecondaryDark">#a70000</color>
+    <color name="colorSecondaryLight">#ff554f</color>
+    <color name="colorAccent">#D81B60</color>
+
+    <color name="selected_background_color">#ff554f</color>
+    <color name="unselected_background_color">#ffffff</color>
+    <color name="shadow_background_color">#5d2948</color>
+    <color name="unselected_header_background_color">#ffffff</color>
+
+    <color name="unselected_text_color">#000000</color>
+    <color name="selected_text_color">#ffffff</color>
+    <color name="separator_color">#000000</color>
+
+    <color name="popup_menu_item_text_color">#88a5c9</color>
+</resources>
