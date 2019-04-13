@@ -27,6 +27,10 @@ public class MyTableAdapter extends AbstractTableAdapter<ColumnHeaderModel, RowH
         super(p_jContext);
 
         switch (statsCategory) {
+            case StatsCategory.PER_INN_AVG_SCORE: {
+                this.myTableViewModel = new AverageInningsScoreTableViewModel();
+                break;
+            }
             case StatsCategory.BATTING_MOST_RUNS:
             case StatsCategory.BATTING_BEST_AVG:
             case StatsCategory.BATTING_BEST_SR:

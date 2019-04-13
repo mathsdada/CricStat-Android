@@ -1,6 +1,7 @@
 package com.mission.cricstat.Rest;
 
 import com.mission.cricstat.Rest.Model.Match;
+import com.mission.cricstat.Rest.Model.TeamStats.AverageInningsScoreResponse;
 import com.mission.cricstat.Rest.Model.TeamStats.MatchScore;
 import com.mission.cricstat.Rest.Model.TeamStats.TeamBattingStatsResponse;
 import com.mission.cricstat.Rest.Model.TeamStats.TeamBowlingStatsResponse;
@@ -66,6 +67,9 @@ public interface API {
 
     @GET("/venue_stats/recent_matches")
     Call<ArrayList<MatchScore>> getVenueRecentMatches(@QueryMap Map<String, String> params);
+
+    @GET("/venue_stats/avg_per_innings_score")
+    Call<ArrayList<AverageInningsScoreResponse>> getVenueAveragePerInningsScores(@QueryMap Map<String, String> params);
 
     @GET("/venue_stats/batting/most_runs")
     Call<ArrayList<TeamBattingStatsResponse>> getVenueBattingMostRuns(@QueryMap Map<String, String> params);

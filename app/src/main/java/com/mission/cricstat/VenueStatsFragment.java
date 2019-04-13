@@ -69,9 +69,7 @@ public class VenueStatsFragment extends Fragment {
                         startActivity(intent);
                         break;
                     }
-                    case StatsCategory.PER_INN_AVG_SCORE: {
-                        break;
-                    }
+                    case StatsCategory.PER_INN_AVG_SCORE:
                     case StatsCategory.BATTING_MOST_RUNS:
                     case StatsCategory.BATTING_BEST_AVG:
                     case StatsCategory.BATTING_BEST_SR:

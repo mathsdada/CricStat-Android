@@ -16,8 +16,7 @@
             android:name=".TableActivity"
             android:label="@string/title_activity_team_batting_stats"
             android:parentActivityName=".MatchActivity"
-            android:theme="@style/AppTheme.NoActionBar"
-            android:screenOrientation="landscape">
+            android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.mission.cricstat.MatchActivity" />

@@ -1,5 +1,6 @@
 package com.mission.cricstat;
 
+import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
@@ -15,6 +16,7 @@ import android.widget.TextView;
 import com.evrencoskun.tableview.TableView;
 import com.mission.cricstat.Common.Constants;
 import com.mission.cricstat.Common.StatsCategory;
+import com.mission.cricstat.Rest.Model.TeamStats.AverageInningsScoreResponse;
 import com.mission.cricstat.Rest.Model.TeamStats.TeamBattingStatsResponse;
 import com.mission.cricstat.Rest.Model.TeamStats.TeamBowlingStatsResponse;
 import com.mission.cricstat.Rest.Rest;
@@ -62,7 +64,16 @@ public class TableActivity extends AppCompatActivity {
 
         initializeTableView(mTableView);
         initializeFilter();
+        setScreenOrientation();
         fetchStats(false);
+    }
+
+    private void setScreenOrientation() {
+        if (mStatsType.equals(StatsCategory.VENUE_STATS) && mStatsSubType.equals(StatsCategory.PER_INN_AVG_SCORE)) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        } else {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        }
     }
 
     private void initializeFilter() {
@@ -113,6 +124,9 @@ public class TableActivity extends AppCompatActivity {
         mQueryMap = queryParams;
 
         switch (mStatsSubType) {
+            case StatsCategory.PER_INN_AVG_SCORE: {
+                fetchVenueInningsAverageStats();
+            }
             case StatsCategory.BATTING_MOST_RUNS:
             case StatsCategory.BATTING_BEST_AVG:
             case StatsCategory.BATTING_BEST_SR:
@@ -145,6 +159,23 @@ public class TableActivity extends AppCompatActivity {
                 break;
             }
         }
+    }
+
+    private void fetchVenueInningsAverageStats() {
+        showProgressBar();
+        Rest.api().getVenueAveragePerInningsScores(mQueryMap).enqueue(new Callback<ArrayList<AverageInningsScoreResponse>>() {
+            @Override
+            public void onResponse(Call<ArrayList<AverageInningsScoreResponse>> call, Response<ArrayList<AverageInningsScoreResponse>> response) {
+                if (response.body() == null) return;
+                mTableAdapter.setResponseList(AverageInningsScoreResponse.convertToObjectArray(response.body()));
+                hideProgressBar();
+            }
+
+            @Override
+            public void onFailure(Call<ArrayList<AverageInningsScoreResponse>> call, Throwable t) {
+                showRetrySnackBar();
+            }
+        });
     }
 
     private void fetchTeamBattingStats() {
